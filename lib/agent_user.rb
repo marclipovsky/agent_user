@@ -8,11 +8,11 @@ class AgentUser
   
   def initialize (str)
     # Every device/browser/os name with version
-    all_names_and_versions_arr = str.scan %r`((?:[a-zA-Z]+\s?)+)[/ ]([0-9._]+)`
+    @name_version_pairs = str.scan %r`((?:[a-zA-Z]+\s?)+)[/ ]([xi0-9._]+)`
     
-    self.get_operating_system_data(str)
-    self.get_browser_data(all_names_and_versions_arr)
-    self.get_mobile_data(all_names_and_versions_arr)
+    self.get_operating_system_data(@name_version_pairs)
+    self.get_browser_data(@name_version_pairs)
+    self.get_mobile_data(@name_version_pairs)
     
     return true
   end
@@ -20,47 +20,42 @@ class AgentUser
   
   
   # Parse out operating system name and version
-  def get_browser_data(all_names_and_versions_arr)
+  def get_browser_data(arr)
     # Filter our browser name and version based on user agent browser names
-    names_and_versions_without_os_info = all_names_and_versions_arr.reject {|e| e == @os_name_and_version.last}
-    browser_name_and_version = names_and_versions_without_os_info.select do |e|
-      e.to_s.include?('Safari') ||
-      e.to_s.include?('Mobile Safari') ||
-      e.to_s.include?('Firefox') ||
-      e.to_s.include?('MSIE') ||
-      e.to_s.include?('IEMobile') ||
-      e.to_s.include?('Opera') ||
-      e.to_s.include?('Internet Explorer') ||
-      e.to_s.include?('Chrome')
-    end.first
+    browser_names = %w|Mobile\ Safari Safari Firefox MSIE IEMobile bot Bot spider Spider Opera Internet\ Explorer Chrome|
+    browser_name_and_version = arr.find do |name, version|
+      browser_names.any? {|browser_name| name.include? browser_name}
+    end
     
     @browser_name, @browser_version = browser_name_and_version
     
     
     # The version number for Safari is located in another place in the user agent
     #   Below will solve that by finding that version number
-    version_arr = names_and_versions_without_os_info.select {|e| e[0] == "Version"}.first
+    version_arr = arr.select {|name,version| name == "Version"}.first
     if @browser_name == "Safari" && version_arr
       @browser_version = version_arr[1]
     end
   end
   
   # Parse out operating system name and version
-  def get_operating_system_data (str)
-    @os_name_and_version = str.scan %r`((?:\w+\s?)+)\s([0-9._]+)`
-    @operating_system_name, @operating_system_version = @os_name_and_version.last
+  def get_operating_system_data (arr)
+    # NOTE: Make sure Android is before Linux in browser_names
+    operating_system_names = %w|Windows Android Linux CPU\ iPhone\ OS CPU\ OS bot Bot spider Spider Mac\ OS|
+    os_name_and_version = arr.find do |name, version|
+      operating_system_names.any? {|operating_system_name| name.include? operating_system_name}
+    end
+    
+    @operating_system_name, @operating_system_version = os_name_and_version
   end
   
   # Parse out mobile device name and version
-  def get_mobile_data(all_names_and_versions_arr)
+  def get_mobile_data(arr)
     # Mobile device name and version
-    mobile_device_name_and_version = all_names_and_versions_arr.select do |e|
-      e.to_s.include?('Android') ||       # Android
-      e.to_s.include?('Blackberry') ||    # Blackberry
-      e.to_s.include?('iPhone OS') ||     # iPhone
-      e.to_s.include?('CPU OS') ||        # iPad
-      e.to_s.include?('Windows Phone OS') # Windows Phone
-    end.first
+    mobile_device_names = %w|Android Blackberry iPhone\ OS Zune CPU OS Windows\ Phone\ OS|
+    mobile_device_name_and_version = arr.find do |name, version|
+      mobile_device_names.any? {|mobile_device_name| name.include? mobile_device_name}
+    end
     
     @mobile_device_name, @mobile_device_version = mobile_device_name_and_version
   end
@@ -70,6 +65,11 @@ class AgentUser
   def mobile?
     # Force true or false if the based on the device name
     !!@mobile_device_name
+  end
+  
+  
+  def bot?
+    !!(self.operating_system_name =~ /bot/i)
   end
   
   
@@ -83,20 +83,22 @@ class AgentUser
   end
   
   def mobile_device_version
-    # Replace _ in some version numbers to .
-    @mobile_device_version.gsub(?_,?.) if @mobile_device_version
+    # Replace underscores in some version numbers to periods
+    @mobile_device_version = @mobile_device_version.gsub(?_,?.) if @mobile_device_version
   end
   
   def operating_system_name
     # Change name from user agent to iOS if from an iPad or iPhone
     return 'iOS' if ['CPU OS','CPU iPhone OS'].include? @operating_system_name
+    return 'Bot' if !!(@operating_system_name =~ /bot/i)
+    return 'Spider' if !!(@operating_system_name =~ /spider/i)
     
     @operating_system_name || 'Other'
   end
   
   def operating_system_version
-    # Replace _ in some version numbers to .
-    @operating_system_version.gsub(?_,?.) if @operating_system_version
+    # Replace underscores in some version numbers to periods
+    @operating_system_version = @operating_system_version.gsub(?_,?.) if @operating_system_version
   end
   
   def browser_name
@@ -106,8 +108,8 @@ class AgentUser
   end
   
   def browser_version
-    # Replace _ in some version numbers to .
-    @browser_version.gsub(?_,?.) if @browser_version
+    # Replace underscores in some version numbers to periods
+    @browser_version = @browser_version.gsub(?_,?.) if @browser_version
   end
   
 end
