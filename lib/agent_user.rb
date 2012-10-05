@@ -1,37 +1,51 @@
 # encoding: UTF-8
 
 class AgentUser
-  attr_accessor :browser_name, :browser_version
-  attr_accessor :operating_system_name, :operating_system_version
-  attr_accessor :mobile_device_name, :mobile_device_version
+  attr_reader :browser_name, :browser_version
+  attr_reader :operating_system_name, :operating_system_version
+  attr_reader :mobile_device_name, :mobile_device_version
+  attr_reader :bot_name, :bot_version
   
   def initialize (str = "")
     
-    @browser_name = 'Other'
-    @browser_version = 'Other'
-    @operating_system_name = 'Other'
-    @operating_system_version = 'Other'
-    @mobile_device_name = 'Other'
-    @mobile_device_version = 'Other'
+    # Device/Browser/OS name version pairs
+    name_version_pairs = str.scan %r`((?:[-.a-zA-Z]+\s?)+)[/. ]((?:(?:DBN)|[xi0-9._-])+)`
     
-    # Every device/browser/os name with version
-    name_version_pairs = str.scan %r`((?:[a-zA-Z]+\s?)+)[/ ]([xi0-9._]+)`
+    # Strip blacklisted names from name_version_pairs
+    blacklist = 
+      %w:.NET Mozilla Trident RTC InfoPath AppleWebKit chromeframe FlipboardProxy
+      Gecko Media\ Center\ PC AskTbORJ Windows-Media-Player MSOffice:
+    name_version_pairs = name_version_pairs.reject do |name, version|
+      blacklist.any? {|n| name =~ /#{n}/i}
+    end
     
-    self.get_operating_system_data(name_version_pairs)
-    self.get_browser_data(name_version_pairs)
-    self.get_mobile_data(name_version_pairs)
+    @operating_system_name, @operating_system_version = self.get_operating_system_data(name_version_pairs)
+    @browser_name, @browser_version = self.get_browser_data(name_version_pairs)
+    @mobile_device_name, @mobile_device_version = self.get_mobile_data(name_version_pairs)
+    @bot_name, @bot_version = self.get_bot_data(name_version_pairs)
     
     return true
+  end
+  
+  
+  def to_s
+    user_agent_data = []
+    user_agent_data << "OS: #{self.operating_system_name} #{self.operating_system_version}" if self.operating_system_name
+    user_agent_data << "Browser: #{self.browser_name} #{self.browser_version}" if self.browser_name
+    user_agent_data << "Mobile: #{self.mobile_device_name} #{self.mobile_device_version}" if self.mobile_device_name
+    user_agent_data << "Bot: #{self.bot_name} #{self.bot_version}" if self.bot_name
+    puts user_agent_data.join(", ")
   end
   
   
   
   # Parse out operating system name and version
   def get_browser_data(name_version_pairs)
+    
     # Filter our browser name and version based on user agent browser names
-    b_names = %w|Mobile\ Safari Safari Firefox MSIE IEMobile bot Bot spider Spider Opera Internet\ Explorer Chrome|
+    b_names = %w:Safari Firefox MSIE IEMobile Opera Internet\ Explorer Chrome:
     b_name, b_version = name_version_pairs.find do |name, version|
-      b_names.any? {|b_name| name.include? b_name}
+      b_names.any? {|b_name| name =~ /#{b_name}/}
     end
     
     # Change MSIE to Internet Explorer
@@ -40,24 +54,26 @@ class AgentUser
     # Change underscores to periods in b_version
     b_version = b_version.gsub(?_,?.) if b_version
     
-    # The version number for Safari is located in another place in the user agent
-    #   Below will solve that by finding that version number
-    version_arr = name_version_pairs.select {|name,version| name == "Version"}.first
-    if b_name == "Safari" && version_arr
+    # The version number for Safari or Mobile Safari is located in another
+    # place in the user agent. This will solve that by finding that version number
+    version_arr = name_version_pairs.find {|name,version| name == "Version"}
+    if b_name =~ /Safari/ && version_arr
       b_version = version_arr[1]
     end
     
     
     
-    self.browser_name, self.browser_version = b_name, b_version
+    return b_name, b_version
   end
   
   # Parse out operating system name and version
   def get_operating_system_data (name_version_pairs)
-    # NOTE: Make sure Android is before Linux in os_names
-    os_names = %w|Windows Android Linux CPU\ iPhone\ OS CPU\ OS bot Bot spider Spider Mac\ OS|
-    os_name, os_version = name_version_pairs.find do |name, version|
-      os_names.any? {|os_name| name.include? os_name}
+    
+    # NOTE: Reverse order of name_version_pairs to that Android and Ubuntu are
+    #   found before Linux is if they exist in the name_version_pairs array.
+    os_names = %w:Windows Android Ubuntu Linux CPU\ iPhone\ OS CPU\ OS Mac\ OS:
+    os_name, os_version = name_version_pairs.reverse.find do |name, version|
+      os_names.any? {|os_name| name =~ /#{os_name}/}
     end
     
     # Change underscores to periods in os_version
@@ -65,45 +81,44 @@ class AgentUser
     
     # Change name from user agent to iOS if from an iPad or iPhone
     os_name = 'iOS' if ['CPU OS','CPU iPhone OS'].include?(os_name)
-    os_name = 'Bot' if !!(os_name =~ /bot/i)
-    os_name = 'Spider' if !!(os_name =~ /spider/i)
     os_name = 'Windows' if os_name == 'Windows NT'
     
     # Handle Windows version numbers/names
-    os_version = case os_name == 'Windows'
-    when os_version == '6.2'
-      '8'
-    when os_version == '6.1'
-      '7'
-    when os_version == '6.0'
-      'Vista'
-    when os_version == '5.2'
-      'XP x64'
-    when os_version == '5.1'
-      'XP'
-    when os_version == '5.0'
-      '2000'
-    when os_version == '4.1'
-      '98'
-    when os_version == '4.9'
-      'ME'
-    when os_version == '4.0'
-      '95'
-    else
-      'other'
+    if os_name == 'Windows'
+      os_version = case os_version
+      when '6.2'
+        '8'
+      when '6.1'
+        '7'
+      when '6.0'
+        'Vista'
+      when '5.2'
+        'XP x64'
+      when '5.1'
+        'XP'
+      when '5.0'
+        '2000'
+      when '4.1'
+        '98'
+      when '4.9'
+        'ME'
+      when '4.0'
+        '95'
+      end
     end
     
     
     
-    self.operating_system_name, self.operating_system_version = os_name, os_version
+    return os_name, os_version
   end
   
   # Parse out mobile device name and version
   def get_mobile_data(name_version_pairs)
+    
     # Mobile device name and version
-    m_names = %w|Android Blackberry iPhone\ OS Zune CPU\ OS Windows\ Phone\ OS|
+    m_names = %w:Android Tablet Blackberry iPhone\ OS Zune CPU\ OS Windows\ Phone\ OS:
     m_name, m_version = name_version_pairs.find do |name, version|
-      m_names.any? {|m_name| name.include? m_name}
+      m_names.any? {|m_name| name =~ /#{m_name}/}
     end
     
     # Change underscores to periods in m_version
@@ -114,8 +129,28 @@ class AgentUser
     
     
     
-    self.mobile_device_name, self.mobile_device_version = m_name, m_version
+    return m_name, m_version
   end
+  
+  
+  
+  # Parse out bot name and version
+  def get_bot_data(name_version_pairs)
+    
+    # Bot name and version
+    bot_names = %w:bot google bing yahoo:
+    bot_name, bot_version = name_version_pairs.find do |name, version|
+      bot_names.any? {|bot_name| name =~ /#{bot_name}/i}
+    end
+    
+    # Change underscores to periods in m_version
+    bot_version = bot_version.gsub(?_,?.) if bot_version
+    
+    
+    
+    return bot_name, bot_version
+  end
+  
   
   
   # Check if AgentUser detects a mobile device
@@ -123,9 +158,8 @@ class AgentUser
     !!self.mobile_device_name
   end
   
-  
   # Check if AgentUser detects a bot
   def bot?
-    !!(self.operating_system_name =~ /bot/i)
+    !!self.bot_name
   end
 end
