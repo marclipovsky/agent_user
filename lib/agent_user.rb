@@ -1,18 +1,20 @@
 # encoding: UTF-8
+require 'ostruct'
 
-class AgentUser
+class AgentUser < OpenStruct
+  attr_accessor :browser_name, :browser_version
+  attr_accessor :operating_system_name, :operating_system_version
+  attr_accessor :mobile_device_name, :mobile_device_version
   
-  def self.parse(str)
-    self.new(str)
-  end
-  
-  def initialize (str)
-    # Every device/browser/os name with version
-    @name_version_pairs = str.scan %r`((?:[a-zA-Z]+\s?)+)[/ ]([xi0-9._]+)`
+  def initialize (str = "")
+    return unless str
     
-    self.get_operating_system_data(@name_version_pairs)
-    self.get_browser_data(@name_version_pairs)
-    self.get_mobile_data(@name_version_pairs)
+    # Every device/browser/os name with version
+    name_version_pairs = str.scan %r`((?:[a-zA-Z]+\s?)+)[/ ]([xi0-9._]+)`
+    
+    self.get_operating_system_data(name_version_pairs)
+    self.get_browser_data(name_version_pairs)
+    self.get_mobile_data(name_version_pairs)
     
     return true
   end
@@ -73,6 +75,8 @@ class AgentUser
   end
   
   
+  
+  # Attributes
   
   def mobile_device_name
     # Change name from user agent to more readable iOS device
