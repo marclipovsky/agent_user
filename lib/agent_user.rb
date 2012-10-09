@@ -1,10 +1,10 @@
 # encoding: UTF-8
 
 class AgentUser
-  attr_reader :browser_name, :browser_version
-  attr_reader :operating_system_name, :operating_system_version
-  attr_reader :mobile_device_name, :mobile_device_version
-  attr_reader :bot_name, :bot_version
+  attr_writer :browser_name, :browser_version
+  attr_writer :operating_system_name, :operating_system_version
+  attr_writer :mobile_device_name, :mobile_device_version
+  attr_writer :bot_name, :bot_version
   
   def initialize (str = "")
     
@@ -162,17 +162,5 @@ class AgentUser
   # Check if AgentUser detects a bot
   def is_bot?
     !!self.bot_name
-  end
-  
-  # Check if there's no information in user agent
-  def is_empty?
-    self.browser_name.blank? &&
-    self.browser_version.blank? &&
-    self.operating_system_name.blank? &&
-    self.operating_system_version.blank? &&
-    self.mobile_device_name.blank? &&
-    self.mobile_device_version.blank? &&
-    self.bot_name.blank? &&
-    self.bot_version.blank?
   end
 end
