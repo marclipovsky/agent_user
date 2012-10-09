@@ -14,7 +14,8 @@ class AgentUser
     # Strip blacklisted names from name_version_pairs
     blacklist = 
       %w:.NET Mozilla Trident RTC InfoPath AppleWebKit chromeframe FlipboardProxy
-      Gecko Media\ Center\ PC AskTbORJ Windows-Media-Player MSOffice:
+      Gecko Media\ Center\ PC AskTbORJ Windows-Media-Player MSOffice WinTSI Carrier
+      MSN MAXTHON plugins Qwest:
     name_version_pairs = name_version_pairs.reject do |name, version|
       blacklist.any? {|n| name =~ /#{n}/i}
     end
@@ -54,7 +55,7 @@ class AgentUser
     # Change underscores to periods in b_version
     b_version = b_version.gsub(?_,?.) if b_version
     
-    # The version number for Safari or Mobile Safari is located in another
+    # The version number for Safari or Mobile Safari is located in an"m "
     # place in the user agent. This will solve that by finding that version number
     version_arr = name_version_pairs.find {|name,version| name == "Version"}
     if b_name =~ /Safari/ && version_arr
@@ -154,12 +155,12 @@ class AgentUser
   
   
   # Check if AgentUser detects a mobile device
-  def mobile?
+  def is_mobile?
     !!self.mobile_device_name
   end
   
   # Check if AgentUser detects a bot
-  def bot?
+  def is_bot?
     !!self.bot_name
   end
 end
