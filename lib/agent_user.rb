@@ -1,10 +1,10 @@
 # encoding: UTF-8
 
 class AgentUser
-  attr_writer :browser_name, :browser_version
-  attr_writer :operating_system_name, :operating_system_version
-  attr_writer :mobile_device_name, :mobile_device_version
-  attr_writer :bot_name, :bot_version
+  attr_reader :browser_name, :browser_version
+  attr_reader :operating_system_name, :operating_system_version
+  attr_reader :mobile_device_name, :mobile_device_version
+  attr_reader :bot_name, :bot_version
   
   def initialize (str = "")
     
